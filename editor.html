@@ -6,12 +6,11 @@
     <title>Stargazer Editor Pro</title>
     <style>
         :root { --primary: #007AFF; --bg: #000; --bar: #111; }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin: 0; padding: 0; box-sizing: border-box; touch-action: none; }
         body { background: var(--bg); color: white; height: 100vh; display: flex; flex-direction: column; font-family: -apple-system, sans-serif; overflow: hidden; }
 
-        /* Header e Resolução */
+        /* Header */
         .header { padding: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 0.5px solid #222; background: var(--bg); z-index: 100; }
-        
         .res-selector { display: none; flex: 1; justify-content: center; align-items: center; gap: 40px; }
         .res-selector.active { display: flex; }
         .res-dot { width: 12px; height: 12px; background: #333; border-radius: 50%; position: relative; cursor: pointer; }
@@ -19,59 +18,60 @@
         .res-dot span { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #666; }
         .res-dot.selected span { color: white; }
 
-        /* Preview */
+        /* Preview Area */
         .preview { flex: 1; display: flex; align-items: center; justify-content: center; background: #0a0a0a; position: relative; overflow: hidden; }
-        canvas { max-width: 95%; max-height: 85%; box-shadow: 0 0 30px rgba(0,0,0,0.8); transition: 0.3s; }
+        #canvasWrapper { transition: transform 0.1s ease-out; display: flex; align-items: center; justify-content: center; }
+        canvas { max-width: 95vw; max-height: 80vh; box-shadow: 0 0 30px rgba(0,0,0,0.8); }
 
         /* Overlay de Corte */
         #cropBox {
             position: absolute; border: 2px solid white; display: none;
-            box-shadow: 0 0 0 4000px rgba(0,0,0,0.6); pointer-events: none;
+            box-shadow: 0 0 0 4000px rgba(0,0,0,0.6); pointer-events: none; z-index: 50;
         }
         #cropBox::after {
-            content: ''; position: absolute; width: 20px; height: 20px;
+            content: ''; position: absolute; width: 24px; height: 24px;
             bottom: -5px; right: -5px; border-right: 4px solid var(--primary); border-bottom: 4px solid var(--primary);
-            pointer-events: auto; cursor: nwse-resize;
+            pointer-events: auto;
         }
 
-        /* Aba de Efeitos (Gaveta) */
+        /* Drawer */
         .drawer { 
             position: fixed; bottom: -300px; left: 0; width: 100%; height: 280px; 
             background: #0f0f0f; border-top: 1px solid #222; border-radius: 20px 20px 0 0; 
             transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); z-index: 110; padding: 20px;
         }
         .drawer.open { bottom: 0; }
-        .drawer-header { display: flex; justify-content: space-between; margin-bottom: 15px; font-weight: bold; }
         .fx-grid { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; }
         .fx-card { min-width: 80px; height: 100px; background: #1a1a1a; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; font-size: 11px; border: 1px solid #222; }
 
         /* Bottom Bar */
-        .bottom-bar { background: var(--bar); padding: 20px; display: flex; gap: 20px; overflow-x: auto; border-top: 0.5px solid #222; }
-        .tool-btn { min-width: 70px; display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 11px; color: #aaa; cursor: pointer; }
-        .tool-icon { width: 44px; height: 44px; background: #222; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; color: white; }
+        .bottom-bar { background: var(--bar); padding: 15px 5px 30px; display: flex; gap: 10px; overflow-x: auto; border-top: 0.5px solid #222; }
+        .tool-btn { min-width: 65px; display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 10px; color: #aaa; cursor: pointer; }
+        .tool-btn.active .tool-icon { background: var(--primary); border-color: var(--primary); }
+        .tool-icon { width: 40px; height: 40px; background: #222; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: white; border: 1px solid transparent; transition: 0.2s; }
     </style>
 </head>
 <body>
 
     <div class="header">
         <span onclick="history.back()" id="backBtn">⬅️</span>
-        
         <div class="res-selector" id="resSelector">
             <div class="res-dot" onclick="setRes(0, this)"><span>480P</span></div>
             <div class="res-dot selected" onclick="setRes(1, this)"><span>720P</span></div>
             <div class="res-dot" onclick="setRes(2, this)"><span>1080P</span></div>
         </div>
-
         <span id="exportBtn" style="color: #007AFF; font-weight: bold; cursor: pointer;">EXPORTAR</span>
     </div>
 
     <div class="preview" id="previewContainer">
-        <canvas id="mainCanvas"></canvas>
-        <div id="cropBox"></div>
+        <div id="canvasWrapper">
+            <canvas id="mainCanvas"></canvas>
+            <div id="cropBox"></div>
+        </div>
     </div>
 
     <div class="drawer" id="fxDrawer">
-        <div class="drawer-header">
+        <div class="drawer-header" style="display:flex; justify-content:space-between; margin-bottom:15px; font-weight:bold;">
             <span>FILTROS DO REPO</span>
             <span onclick="toggleFX()" style="color: var(--primary)">FECHAR</span>
         </div>
@@ -81,35 +81,46 @@
     </div>
 
     <div class="bottom-bar">
-        <div class="tool-btn" onclick="applyEffect('invert')">
-            <div class="tool-icon">🌓</div>
-            <span>Negativo</span>
+        <div class="tool-btn" id="btnNav" onclick="toggleNav()">
+            <div class="tool-icon">🖐️</div>
+            <span>Navegar</span>
+        </div>
+        <div class="tool-btn" onclick="startCrop()">
+            <div class="tool-icon">✂️</div>
+            <span>Cortar</span>
         </div>
         <div class="tool-btn" onclick="toggleFX()">
             <div class="tool-icon">✨</div>
             <span>Filtros</span>
         </div>
-        <div class="tool-btn" onclick="startCrop()">
-            <div class="tool-icon">✂️</div>
-            <span>Cortar</span>
+        <div class="tool-btn" onclick="applyEffect('invert')">
+            <div class="tool-icon">🌓</div>
+            <span>Negativo</span>
         </div>
     </div>
 
     <script>
         const canvas = document.getElementById('mainCanvas');
         const ctx = canvas.getContext('2d');
+        const wrapper = document.getElementById('canvasWrapper');
         const exportBtn = document.getElementById('exportBtn');
         const resSelector = document.getElementById('resSelector');
-        const backBtn = document.getElementById('backBtn');
         const cropBox = document.getElementById('cropBox');
         
         let originalImg = new Image();
         let currentResIndex = 1; 
         const resolutions = [{w:854, h:480}, {w:1280, h:720}, {w:1920, h:1080}];
-        
-        // Variáveis de Corte
+
+        // Variáveis de Estado
         let isCropping = false;
+        let isNavigating = false;
+        let isMovingCrop = false;
+        let holdTimer = null;
+        
+        let scale = 1, posX = 0, posY = 0;
         let cropData = { x: 50, y: 50, w: 200, h: 200 };
+        let lastTouch = null;
+        let initialPinchDist = 0;
 
         const GITHUB_USER = "pitocoofc";
         const GITHUB_REPO = "Ndj-lib";
@@ -125,38 +136,32 @@
             canvas.width = originalImg.width;
             canvas.height = originalImg.height;
             ctx.drawImage(originalImg, 0, 0);
+            scale = 1; posX = 0; posY = 0;
+            updateTransform();
         }
 
-        // Lógica de Exportação / Confirmação de Corte
-        exportBtn.onclick = () => {
-            if (isCropping) {
-                confirmCrop();
-                return;
-            }
-            if (!resSelector.classList.contains('active')) {
-                resSelector.classList.add('active');
-                backBtn.style.display = 'none';
-                exportBtn.innerText = "SALVAR";
-            } else {
-                saveImage();
-            }
-        };
+        function updateTransform() {
+            wrapper.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
+        }
 
-        // --- FUNÇÕES DE CORTE ---
+        function toggleNav() {
+            isNavigating = !isNavigating;
+            isCropping = false;
+            cropBox.style.display = "none";
+            document.getElementById('btnNav').classList.toggle('active', isNavigating);
+            exportBtn.innerText = "EXPORTAR";
+        }
+
         function startCrop() {
             isCropping = true;
+            isNavigating = false;
+            document.getElementById('btnNav').classList.remove('active');
             exportBtn.innerText = "CONCLUIR";
             exportBtn.style.color = "#34C759";
             cropBox.style.display = "block";
             
-            // Posiciona inicial no centro do canvas visível
             const rect = canvas.getBoundingClientRect();
-            cropData = { 
-                x: rect.left + rect.width/4, 
-                y: rect.top + rect.height/4, 
-                w: rect.width/2, 
-                h: rect.height/2 
-            };
+            cropData = { x: 50, y: 50, w: 150, h: 150 };
             updateCropUI();
         }
 
@@ -167,45 +172,85 @@
             cropBox.style.height = cropData.h + "px";
         }
 
-        // Touch para redimensionar o corte (Mobile)
-        let lastTouch = null;
-        document.addEventListener('touchstart', e => { if(isCropping) lastTouch = e.touches[0]; });
+        // --- GESTOS UNIFICADOS (Zoom, Pan, Crop, Move) ---
+        document.addEventListener('touchstart', e => {
+            if (e.touches.length === 2 && isNavigating) {
+                initialPinchDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+            }
+            if (e.touches.length === 1) {
+                lastTouch = { x: e.touches[0].pageX, y: e.touches[0].pageY };
+                
+                if (isCropping) {
+                    holdTimer = setTimeout(() => {
+                        isMovingCrop = true;
+                        cropBox.style.borderColor = "#34C759";
+                        if(navigator.vibrate) navigator.vibrate(50);
+                    }, 1000);
+                }
+            }
+        });
+
         document.addEventListener('touchmove', e => {
-            if(!isCropping || !lastTouch) return;
-            const touch = e.touches[0];
-            const dx = touch.clientX - lastTouch.clientX;
-            const dy = touch.clientY - lastTouch.clientY;
-            
-            cropData.w += dx;
-            cropData.h += dy;
-            updateCropUI();
-            lastTouch = touch;
+            if (isNavigating) {
+                if (e.touches.length === 2) {
+                    let dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+                    scale *= dist / initialPinchDist;
+                    initialPinchDist = dist;
+                } else if (e.touches.length === 1 && lastTouch) {
+                    posX += e.touches[0].pageX - lastTouch.x;
+                    posY += e.touches[0].pageY - lastTouch.y;
+                }
+                updateTransform();
+            } else if (isCropping && lastTouch) {
+                clearTimeout(holdTimer);
+                const dx = e.touches[0].pageX - lastTouch.x;
+                const dy = e.touches[0].pageY - lastTouch.y;
+                
+                if (isMovingCrop) {
+                    cropData.x += dx; cropData.y += dy;
+                } else {
+                    cropData.w += dx; cropData.h += dy;
+                }
+                updateCropUI();
+            }
+            if (e.touches.length === 1) lastTouch = { x: e.touches[0].pageX, y: e.touches[0].pageY };
+        });
+
+        document.addEventListener('touchend', () => {
+            clearTimeout(holdTimer);
+            isMovingCrop = false;
+            cropBox.style.borderColor = "white";
         });
 
         function confirmCrop() {
             const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
+            const ratioX = canvas.width / rect.width;
+            const ratioY = canvas.height / rect.height;
 
-            const finalX = (cropData.x - rect.left) * scaleX;
-            const finalY = (cropData.y - rect.top) * scaleY;
-            const finalW = cropData.w * scaleX;
-            const finalH = cropData.h * scaleY;
+            const finalX = (cropData.x) * ratioX;
+            const finalY = (cropData.y) * ratioY;
+            const finalW = cropData.w * ratioX;
+            const finalH = cropData.h * ratioY;
 
-            const croppedData = ctx.getImageData(finalX, finalY, finalW, finalH);
+            const cropped = ctx.getImageData(finalX, finalY, finalW, finalH);
+            canvas.width = finalW; canvas.height = finalH;
+            ctx.putImageData(cropped, 0, 0);
             
-            canvas.width = finalW;
-            canvas.height = finalH;
-            ctx.putImageData(croppedData, 0, 0);
-
-            // Reseta UI
             isCropping = false;
             cropBox.style.display = "none";
             exportBtn.innerText = "EXPORTAR";
             exportBtn.style.color = "#007AFF";
+            scale = 1; posX = 0; posY = 0; updateTransform();
         }
 
-        // --- RESTANTE DAS FUNÇÕES ORIGINAIS ---
+        exportBtn.onclick = () => {
+            if (isCropping) { confirmCrop(); return; }
+            if (!resSelector.classList.contains('active')) {
+                resSelector.classList.add('active');
+                exportBtn.innerText = "SALVAR";
+            } else { saveImage(); }
+        };
+
         function setRes(index, el) {
             document.querySelectorAll('.res-dot').forEach(d => d.classList.remove('selected'));
             el.classList.add('selected');
@@ -214,22 +259,17 @@
 
         function saveImage() {
             const res = resolutions[currentResIndex];
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = res.w;
-            tempCanvas.height = res.h;
-            const tCtx = tempCanvas.getContext('2d');
-            tCtx.drawImage(canvas, 0, 0, res.w, res.h);
+            const temp = document.createElement('canvas');
+            temp.width = res.w; temp.height = res.h;
+            temp.getContext('2d').drawImage(canvas, 0, 0, res.w, res.h);
             const link = document.createElement('a');
-            link.download = `stargazer_crop.png`;
-            link.href = tempCanvas.toDataURL();
+            link.download = `stargazer_edit.png`;
+            link.href = temp.toDataURL();
             link.click();
-            resSelector.classList.remove('active');
-            backBtn.style.display = 'block';
-            exportBtn.innerText = "EXPORTAR";
         }
 
         function toggleFX() { document.getElementById('fxDrawer').classList.toggle('open'); }
-
+        
         async function loadGithubEffects() {
             const fxList = document.getElementById('fxList');
             try {
@@ -249,19 +289,17 @@
 
         async function runExternalEffect(url) {
             const res = await fetch(url);
-            const scriptText = await res.text();
+            const script = await res.text();
             try {
-                const effectFunction = new Function('ctx', 'canvas', scriptText + '\nif(typeof runEffect === "function") runEffect(ctx, canvas);');
-                effectFunction(ctx, canvas);
+                const func = new Function('ctx', 'canvas', script + '\nif(typeof runEffect === "function") runEffect(ctx, canvas);');
+                func(ctx, canvas);
             } catch (e) { console.error(e); }
         }
 
         function applyEffect(type) {
             const data = ctx.getImageData(0,0, canvas.width, canvas.height);
-            const d = data.data;
-            for(let i=0; i<d.length; i+=4) {
-                if(type === 'invert') { d[i]=255-d[i]; d[i+1]=255-d[i+1]; d[i+2]=255-d[i+2]; }
-                if(type === 'gray') { let v=(d[i]+d[i+1]+d[i+2])/3; d[i]=d[i+1]=d[i+2]=v; }
+            for(let i=0; i<data.data.length; i+=4) {
+                if(type === 'invert') { data.data[i]=255-data.data[i]; data.data[i+1]=255-data.data[i+1]; data.data[i+2]=255-data.data[i+2]; }
             }
             ctx.putImageData(data, 0,0);
         }

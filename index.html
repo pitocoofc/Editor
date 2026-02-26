@@ -3,103 +3,146 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stargazer Editor</title>
+    <title>Stargazer Pro Editor</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            background: #000; 
-            height: 100vh; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            overflow: hidden;
-            font-family: -apple-system, system-ui, sans-serif;
+        :root { --primary: #007AFF; --bg: #000; --panel: #111; }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { background: var(--bg); color: white; font-family: sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+        /* Header e Export */
+        .header { padding: 15px; display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.8); z-index: 10; }
+        .res-slider { flex: 1; margin: 0 20px; position: relative; display: flex; align-items: center; }
+        input[type="range"] { width: 100%; accent-color: var(--primary); }
+        .res-label { font-size: 10px; color: var(--primary); font-weight: bold; position: absolute; top: -15px; width: 100%; text-align: center; }
+
+        /* Área de Edição */
+        .preview { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; }
+        canvas { max-width: 90%; max-height: 70%; border-radius: 4px; box-shadow: 0 0 30px rgba(0,0,0,0.5); }
+
+        /* Gaveta de Efeitos (Aba) */
+        .effects-drawer {
+            position: fixed; bottom: -300px; left: 0; width: 100%; height: 280px;
+            background: var(--panel); border-radius: 20px 20px 0 0; transition: 0.3s ease; z-index: 100;
+            padding: 20px; border-top: 1px solid #333;
+        }
+        .effects-drawer.active { bottom: 0; }
+        .drawer-header { display: flex; justify-content: space-between; margin-bottom: 15px; }
+        .effects-grid { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; }
+        .effect-item { 
+            min-width: 80px; height: 80px; background: #222; border-radius: 12px; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 10px;
         }
 
-        /* Efeito de Chuva de Estrelas */
-        .stars-container {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            z-index: 0;
-        }
-        .star {
-            position: absolute;
-            background: white;
-            border-radius: 50%;
-            opacity: 0.5;
-            animation: fall linear infinite;
-        }
-        @keyframes fall {
-            from { transform: translateY(-10vh); }
-            to { transform: translateY(110vh); }
-        }
-
-        /* Botão Central Estilo CapCut */
-        .glass-circle {
-            position: relative;
-            z-index: 10;
-            width: 200px;
-            height: 200px;
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 50%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: 0.3s;
-            box-shadow: 0 0 30px rgba(0, 122, 255, 0.2);
-        }
-        .glass-circle:active { transform: scale(0.95); background: rgba(255, 255, 255, 0.1); }
+        /* Toolbar Inferior */
+        .toolbar { background: var(--panel); display: flex; justify-content: space-around; padding: 15px 10px 30px; border-top: 0.5px solid #222; }
+        .tool-btn { display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 11px; color: #888; }
+        .tool-btn.active { color: var(--primary); }
+        .icon { font-size: 20px; margin-bottom: 2px; }
         
-        .plus-icon { font-size: 40px; color: #007AFF; margin-bottom: 10px; }
-        .text { color: white; font-weight: 600; font-size: 14px; letter-spacing: 1px; }
-
-        input[type="file"] { display: none; }
+        button#exportBtn { background: var(--primary); color: white; border: none; padding: 8px 15px; border-radius: 6px; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <div class="stars-container" id="stars"></div>
+    <div class="header">
+        <span onclick="history.back()">✕</span>
+        <div class="res-slider">
+            <span class="res-label" id="resDisplay">720P (HD)</span>
+            <input type="range" id="resRange" min="0" max="2" step="1" value="1">
+        </div>
+        <button id="exportBtn">SALVAR</button>
+    </div>
 
-    <label for="fileInput" class="glass-circle">
-        <span class="plus-icon">+</span>
-        <span class="text">NOVO PROJETO</span>
-    </label>
-    <input type="file" id="fileInput" accept="image/*">
+    <div class="preview">
+        <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <div class="effects-drawer" id="fxDrawer">
+        <div class="drawer-header">
+            <span>Efeitos de Pasta</span>
+            <span onclick="toggleDrawer()" style="color: var(--primary)">Pronto</span>
+        </div>
+        <div class="effects-grid">
+            <div class="effect-item" onclick="applyInvert()">
+                <div class="icon">🌓</div> Negativo
+            </div>
+            <div class="effect-item" onclick="applyGray()">
+                <div class="icon">⚪</div> P&B
+            </div>
+            </div>
+    </div>
+
+    <div class="toolbar">
+        <div class="tool-btn" onclick="toggleDrawer()">
+            <div class="icon">✨</div>
+            <span>Efeitos</span>
+        </div>
+        <div class="tool-btn">
+            <div class="icon">🎨</div>
+            <span>Ajustes</span>
+        </div>
+        <div class="tool-btn">
+            <div class="icon">📐</div>
+            <span>Crop</span>
+        </div>
+    </div>
 
     <script>
-        // Gerador de Chuva de Estrelas
-        const container = document.getElementById('stars');
-        for (let i = 0; i < 50; i++) {
-            const star = document.createElement('div');
-            star.className = 'star';
-            const size = Math.random() * 3 + 'px';
-            star.style.width = size;
-            star.style.height = size;
-            star.style.left = Math.random() * 100 + '%';
-            star.style.animationDuration = (Math.random() * 3 + 2) + 's';
-            star.style.animationDelay = Math.random() * 5 + 's';
-            container.appendChild(star);
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const resRange = document.getElementById('resRange');
+        const resDisplay = document.getElementById('resDisplay');
+        const resolutions = [
+            { label: '480P (SD)', w: 854, h: 480 },
+            { label: '720P (HD)', w: 1280, h: 720 },
+            { label: '1080P (FHD)', w: 1920, h: 1080 }
+        ];
+
+        // Carregar imagem do SessionStorage
+        let originalImg = new Image();
+        const imgData = sessionStorage.getItem('temp_image');
+        if (imgData) {
+            originalImg.onload = () => { render(); };
+            originalImg.src = imgData;
         }
 
-        // Lógica de envio
-        document.getElementById('fileInput').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    // Salva no sessionStorage (limite de ~5MB, ideal para mobile/web)
-                    sessionStorage.setItem('temp_image', event.target.result);
-                    // Redireciona para o arquivo do editor
-                    window.location.href = 'editor.html'; 
-                };
-                reader.readAsDataURL(file);
+        function render() {
+            const res = resolutions[resRange.value];
+            resDisplay.innerText = res.label;
+            
+            // Redimensiona o canvas para a resolução escolhida
+            canvas.width = res.w;
+            canvas.height = res.h;
+            
+            // Desenha a imagem cobrindo o espaço (Object-fit: cover logic)
+            const scale = Math.max(canvas.width / originalImg.width, canvas.height / originalImg.height);
+            const x = (canvas.width / 2) - (originalImg.width / 2) * scale;
+            const y = (canvas.height / 2) - (originalImg.height / 2) * scale;
+            ctx.drawImage(originalImg, x, y, originalImg.width * scale, originalImg.height * scale);
+        }
+
+        resRange.oninput = render;
+
+        // Funções de Efeito
+        function toggleDrawer() { document.getElementById('fxDrawer').classList.toggle('active'); }
+
+        function applyInvert() {
+            const data = ctx.getImageData(0,0, canvas.width, canvas.height);
+            for(let i=0; i<data.data.length; i+=4) {
+                data.data[i] = 255 - data.data[i];
+                data.data[i+1] = 255 - data.data[i+1];
+                data.data[i+2] = 255 - data.data[i+2];
             }
-        });
+            ctx.putImageData(data, 0,0);
+        }
+
+        // Correção do Exportar
+        document.getElementById('exportBtn').onclick = () => {
+            const link = document.createElement('a');
+            link.download = `stargazer_${resolutions[resRange.value].label}.png`;
+            link.href = canvas.toDataURL('image/png', 1.0);
+            link.click();
+        };
     </script>
 </body>
 </html>

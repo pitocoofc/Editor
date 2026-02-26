@@ -2,34 +2,80 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Editor Pro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Stargazer Editor Pro</title>
     <style>
-        body { background: #000; color: white; margin: 0; height: 100vh; display: flex; flex-direction: column; }
-        .header { padding: 15px; display: flex; justify-content: space-between; border-bottom: 0.5px solid #222; }
-        .preview { flex: 1; display: flex; align-items: center; justify-content: center; background: #0a0a0a; }
-        canvas { max-width: 95%; max-height: 80%; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
-        .bottom-bar { background: #111; padding: 20px; display: flex; gap: 20px; overflow-x: auto; }
-        .tool-btn { min-width: 70px; display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 11px; color: #aaa; }
-        .tool-icon { width: 40px; height: 40px; background: #222; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: white; }
+        :root { --primary: #007AFF; --bg: #000; --bar: #111; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg); color: white; height: 100vh; display: flex; flex-direction: column; font-family: -apple-system, sans-serif; overflow: hidden; }
+
+        /* Header e Resolução */
+        .header { padding: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 0.5px solid #222; background: var(--bg); z-index: 100; }
+        
+        .res-selector { display: none; flex: 1; justify-content: center; align-items: center; gap: 40px; }
+        .res-selector.active { display: flex; }
+        .res-dot { width: 12px; height: 12px; background: #333; border-radius: 50%; position: relative; cursor: pointer; }
+        .res-dot.selected { background: var(--primary); box-shadow: 0 0 10px var(--primary); }
+        .res-dot span { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #666; }
+        .res-dot.selected span { color: white; }
+
+        /* Preview */
+        .preview { flex: 1; display: flex; align-items: center; justify-content: center; background: #0a0a0a; position: relative; }
+        canvas { max-width: 95%; max-height: 85%; box-shadow: 0 0 30px rgba(0,0,0,0.8); transition: 0.3s; }
+
+        /* Aba de Efeitos (Gaveta) */
+        .drawer { 
+            position: fixed; bottom: -300px; left: 0; width: 100%; height: 280px; 
+            background: #0f0f0f; border-top: 1px solid #222; border-radius: 20px 20px 0 0; 
+            transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); z-index: 110; padding: 20px;
+        }
+        .drawer.open { bottom: 0; }
+        .drawer-header { display: flex; justify-content: space-between; margin-bottom: 15px; font-weight: bold; }
+        .fx-grid { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; }
+        .fx-card { min-width: 80px; height: 100px; background: #1a1a1a; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; font-size: 11px; border: 1px solid #222; }
+
+        /* Bottom Bar */
+        .bottom-bar { background: var(--bar); padding: 20px; display: flex; gap: 20px; overflow-x: auto; border-top: 0.5px solid #222; }
+        .tool-btn { min-width: 70px; display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 11px; color: #aaa; cursor: pointer; }
+        .tool-icon { width: 44px; height: 44px; background: #222; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; color: white; }
     </style>
 </head>
 <body>
+
     <div class="header">
-        <span onclick="history.back()">⬅️</span>
-        <span style="color: #007AFF; font-weight: bold;">EXPORTAR</span>
+        <span onclick="history.back()" id="backBtn">⬅️</span>
+        
+        <div class="res-selector" id="resSelector">
+            <div class="res-dot" onclick="setRes(0, this)"><span>480P</span></div>
+            <div class="res-dot selected" onclick="setRes(1, this)"><span>720P</span></div>
+            <div class="res-dot" onclick="setRes(2, this)"><span>1080P</span></div>
+        </div>
+
+        <span id="exportBtn" style="color: #007AFF; font-weight: bold; cursor: pointer;">EXPORTAR</span>
     </div>
 
     <div class="preview">
         <canvas id="mainCanvas"></canvas>
     </div>
 
+    <div class="drawer" id="fxDrawer">
+        <div class="drawer-header">
+            <span>FILTROS DO REPO</span>
+            <span onclick="toggleFX()" style="color: var(--primary)">FECHAR</span>
+        </div>
+        <div class="fx-grid" id="fxList">
+            <div class="fx-card" onclick="applyEffect('invert')"><div class="tool-icon">🌓</div>Inverter</div>
+            <div class="fx-card" onclick="applyEffect('gray')"><div class="tool-icon">🔘</div>P&B</div>
+            <div class="fx-card" onclick="applyEffect('sepia')"><div class="tool-icon">📜</div>Sépia</div>
+        </div>
+    </div>
+
     <div class="bottom-bar">
-        <div class="tool-btn" id="invertAction">
+        <div class="tool-btn" onclick="applyEffect('invert')">
             <div class="tool-icon">🌓</div>
             <span>Negativo</span>
         </div>
-        <div class="tool-btn">
+        <div class="tool-btn" onclick="toggleFX()">
             <div class="tool-icon">✨</div>
             <span>Filtros</span>
         </div>
@@ -42,27 +88,79 @@
     <script>
         const canvas = document.getElementById('mainCanvas');
         const ctx = canvas.getContext('2d');
-        const imgData = sessionStorage.getItem('temp_image');
+        const exportBtn = document.getElementById('exportBtn');
+        const resSelector = document.getElementById('resSelector');
+        const backBtn = document.getElementById('backBtn');
+        
+        let originalImg = new Image();
+        let currentResIndex = 1; // Default 720p
+        const resolutions = [{w:854, h:480}, {w:1280, h:720}, {w:1920, h:1080}];
 
+        // Carregar imagem
+        const imgData = sessionStorage.getItem('temp_image');
         if (imgData) {
-            const img = new Image();
-            img.onload = () => {
-                canvas.width = img.width;
-                canvas.height = img.height;
-                ctx.drawImage(img, 0, 0);
+            originalImg.src = imgData;
+            originalImg.onload = () => {
+                resetCanvas();
             };
-            img.src = imgData;
         }
 
-        document.getElementById('invertAction').onclick = () => {
+        function resetCanvas() {
+            canvas.width = originalImg.width;
+            canvas.height = originalImg.height;
+            ctx.drawImage(originalImg, 0, 0);
+        }
+
+        // Lógica de Exportação (Mostra as bolinhas primeiro)
+        exportBtn.onclick = () => {
+            if (!resSelector.classList.contains('active')) {
+                resSelector.classList.add('active');
+                backBtn.style.display = 'none';
+                exportBtn.innerText = "SALVAR";
+            } else {
+                saveImage();
+            }
+        };
+
+        function setRes(index, el) {
+            document.querySelectorAll('.res-dot').forEach(d => d.classList.remove('selected'));
+            el.classList.add('selected');
+            currentResIndex = index;
+        }
+
+        function saveImage() {
+            const res = resolutions[currentResIndex];
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = res.w;
+            tempCanvas.height = res.h;
+            const tCtx = tempCanvas.getContext('2d');
+            
+            // Desenha com a resolução escolhida
+            tCtx.drawImage(canvas, 0, 0, res.w, res.h);
+            
+            const link = document.createElement('a');
+            link.download = `stargazer_${res.w}p.png`;
+            link.href = tempCanvas.toDataURL();
+            link.click();
+
+            // Volta ao estado normal
+            resSelector.classList.remove('active');
+            backBtn.style.display = 'block';
+            exportBtn.innerText = "EXPORTAR";
+        }
+
+        function toggleFX() { document.getElementById('fxDrawer').classList.toggle('open'); }
+
+        function applyEffect(type) {
+            resetCanvas(); // Aplica sobre o original
             const data = ctx.getImageData(0,0, canvas.width, canvas.height);
-            for(let i=0; i<data.data.length; i+=4) {
-                data.data[i] = 255 - data.data[i];
-                data.data[i+1] = 255 - data.data[i+1];
-                data.data[i+2] = 255 - data.data[i+2];
+            const d = data.data;
+            for(let i=0; i<d.length; i+=4) {
+                if(type === 'invert') { d[i]=255-d[i]; d[i+1]=255-d[i+1]; d[i+2]=255-d[i+2]; }
+                if(type === 'gray') { let v=(d[i]+d[i+1]+d[i+2])/3; d[i]=d[i+1]=d[i+2]=v; }
             }
             ctx.putImageData(data, 0,0);
-        };
+        }
     </script>
 </body>
 </html>

@@ -64,10 +64,8 @@
             <span onclick="toggleFX()" style="color: var(--primary)">FECHAR</span>
         </div>
         <div class="fx-grid" id="fxList">
-            <div class="fx-card" onclick="applyEffect('invert')"><div class="tool-icon">🌓</div>Inverter</div>
-            <div class="fx-card" onclick="applyEffect('gray')"><div class="tool-icon">🔘</div>P&B</div>
-            <div class="fx-card" onclick="applyEffect('sepia')"><div class="tool-icon">📜</div>Sépia</div>
-        </div>
+            <div class="fx-card" onclick="resetCanvas()"><div class="tool-icon">🔄</div>Original</div>
+            </div>
     </div>
 
     <div class="bottom-bar">
@@ -93,16 +91,18 @@
         const backBtn = document.getElementById('backBtn');
         
         let originalImg = new Image();
-        let currentResIndex = 1; // Default 720p
+        let currentResIndex = 1; 
         const resolutions = [{w:854, h:480}, {w:1280, h:720}, {w:1920, h:1080}];
 
-        // Carregar imagem
+        // Configuração do Repositório
+        const GITHUB_USER = "pitocoofc";
+        const GITHUB_REPO = "Ndj-lib";
+        const EFFECTS_FOLDER = "efeitos"; // Nome da pasta no seu repo
+
         const imgData = sessionStorage.getItem('temp_image');
         if (imgData) {
             originalImg.src = imgData;
-            originalImg.onload = () => {
-                resetCanvas();
-            };
+            originalImg.onload = () => { resetCanvas(); };
         }
 
         function resetCanvas() {
@@ -111,7 +111,6 @@
             ctx.drawImage(originalImg, 0, 0);
         }
 
-        // Lógica de Exportação (Mostra as bolinhas primeiro)
         exportBtn.onclick = () => {
             if (!resSelector.classList.contains('active')) {
                 resSelector.classList.add('active');
@@ -134,16 +133,11 @@
             tempCanvas.width = res.w;
             tempCanvas.height = res.h;
             const tCtx = tempCanvas.getContext('2d');
-            
-            // Desenha com a resolução escolhida
             tCtx.drawImage(canvas, 0, 0, res.w, res.h);
-            
             const link = document.createElement('a');
             link.download = `stargazer_${res.w}p.png`;
             link.href = tempCanvas.toDataURL();
             link.click();
-
-            // Volta ao estado normal
             resSelector.classList.remove('active');
             backBtn.style.display = 'block';
             exportBtn.innerText = "EXPORTAR";
@@ -151,8 +145,46 @@
 
         function toggleFX() { document.getElementById('fxDrawer').classList.toggle('open'); }
 
+        // --- LÓGICA DE FILTROS DO REPOSITÓRIO ---
+
+        async function loadGithubEffects() {
+            const fxList = document.getElementById('fxList');
+            try {
+                const response = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${EFFECTS_FOLDER}`);
+                const files = await response.json();
+
+                files.forEach(file => {
+                    if (file.name.endsWith('.js')) {
+                        const nameOnly = file.name.replace('.js', '');
+                        const card = document.createElement('div');
+                        card.className = 'fx-card';
+                        card.innerHTML = `<div class="tool-icon">🧪</div>${nameOnly}`;
+                        card.onclick = () => runExternalEffect(file.download_url);
+                        fxList.appendChild(card);
+                    }
+                });
+            } catch (err) {
+                console.log("Erro ao carregar efeitos da pasta:", err);
+            }
+        }
+
+        async function runExternalEffect(url) {
+            resetCanvas(); // Aplica sempre sobre o estado limpo
+            const res = await fetch(url);
+            const scriptText = await res.text();
+            
+            try {
+                // O arquivo .js deve conter a lógica pura de manipulação de pixels
+                // ou uma função chamada runEffect(ctx, canvas)
+                const effectFunction = new Function('ctx', 'canvas', scriptText + '\nif(typeof runEffect === "function") runEffect(ctx, canvas);');
+                effectFunction(ctx, canvas);
+            } catch (e) {
+                console.error("Erro na execução do efeito:", e);
+            }
+        }
+
         function applyEffect(type) {
-            resetCanvas(); // Aplica sobre o original
+            resetCanvas();
             const data = ctx.getImageData(0,0, canvas.width, canvas.height);
             const d = data.data;
             for(let i=0; i<d.length; i+=4) {
@@ -161,6 +193,9 @@
             }
             ctx.putImageData(data, 0,0);
         }
+
+        // Inicia a busca pelos efeitos assim que abre o editor
+        loadGithubEffects();
     </script>
 </body>
 </html>

@@ -3,146 +3,188 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stargazer Pro Editor</title>
+    <title>Stargazer Editor - Workspace</title>
     <style>
-        :root { --primary: #007AFF; --bg: #000; --panel: #111; }
-        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { background: var(--bg); color: white; font-family: sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
-
-        /* Header e Export */
-        .header { padding: 15px; display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.8); z-index: 10; }
-        .res-slider { flex: 1; margin: 0 20px; position: relative; display: flex; align-items: center; }
-        input[type="range"] { width: 100%; accent-color: var(--primary); }
-        .res-label { font-size: 10px; color: var(--primary); font-weight: bold; position: absolute; top: -15px; width: 100%; text-align: center; }
-
-        /* Área de Edição */
-        .preview { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; }
-        canvas { max-width: 90%; max-height: 70%; border-radius: 4px; box-shadow: 0 0 30px rgba(0,0,0,0.5); }
-
-        /* Gaveta de Efeitos (Aba) */
-        .effects-drawer {
-            position: fixed; bottom: -300px; left: 0; width: 100%; height: 280px;
-            background: var(--panel); border-radius: 20px 20px 0 0; transition: 0.3s ease; z-index: 100;
-            padding: 20px; border-top: 1px solid #333;
-        }
-        .effects-drawer.active { bottom: 0; }
-        .drawer-header { display: flex; justify-content: space-between; margin-bottom: 15px; }
-        .effects-grid { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; }
-        .effect-item { 
-            min-width: 80px; height: 80px; background: #222; border-radius: 12px; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 10px;
-        }
-
-        /* Toolbar Inferior */
-        .toolbar { background: var(--panel); display: flex; justify-content: space-around; padding: 15px 10px 30px; border-top: 0.5px solid #222; }
-        .tool-btn { display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 11px; color: #888; }
-        .tool-btn.active { color: var(--primary); }
-        .icon { font-size: 20px; margin-bottom: 2px; }
+        :root { --primary: #007AFF; --glass: rgba(255, 255, 255, 0.05); }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         
-        button#exportBtn { background: var(--primary); color: white; border: none; padding: 8px 15px; border-radius: 6px; font-weight: bold; }
+        body { 
+            background: #000; color: white; height: 100vh; overflow: hidden;
+            font-family: -apple-system, system-ui, sans-serif;
+            display: flex; flex-direction: column;
+        }
+
+        /* Estrelas de fundo também no editor para manter a identidade */
+        .stars-bg { position: fixed; width: 100%; height: 100%; z-index: -1; }
+        .star { position: absolute; background: white; border-radius: 50%; opacity: 0.3; animation: fall linear infinite; }
+        @keyframes fall { from { transform: translateY(-10vh); } to { transform: translateY(110vh); } }
+
+        /* Header com Slider de Resolução */
+        .header { 
+            padding: 20px; display: flex; align-items: center; justify-content: space-between;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+        }
+
+        .res-container { flex: 1; margin: 0 30px; position: relative; }
+        .res-track { 
+            height: 4px; background: #333; border-radius: 10px; position: relative; 
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .res-node { 
+            width: 12px; height: 12px; background: #555; border-radius: 50%; 
+            transition: 0.3s; cursor: pointer; position: relative;
+        }
+        .res-node.active { background: var(--primary); box-shadow: 0 0 10px var(--primary); }
+        .res-node span { 
+            position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
+            font-size: 9px; color: #888; white-space: nowrap;
+        }
+        .res-node.active span { color: var(--primary); font-weight: bold; }
+
+        /* Área do Canvas */
+        .viewport { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        canvas { 
+            max-width: 100%; max-height: 100%; border-radius: 12px;
+            box-shadow: 0 0 50px rgba(0, 122, 255, 0.1); background: #050505; 
+        }
+
+        /* Toolbar e Gaveta de Efeitos */
+        .bottom-nav { background: var(--glass); backdrop-filter: blur(20px); border-top: 1px solid rgba(255,255,255,0.1); padding: 15px; }
+        .tool-grid { display: flex; justify-content: space-around; }
+        .tool-item { display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 11px; opacity: 0.7; }
+        
+        .drawer {
+            position: fixed; bottom: -350px; left: 0; width: 100%; height: 320px;
+            background: rgba(10, 10, 10, 0.95); backdrop-filter: blur(25px);
+            border-top: 1px solid rgba(255,255,255,0.1); border-radius: 25px 25px 0 0;
+            transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); z-index: 100; padding: 20px;
+        }
+        .drawer.open { bottom: 0; }
+        .drawer-header { display: flex; justify-content: space-between; margin-bottom: 20px; color: var(--primary); font-weight: bold; }
+
+        .effects-list { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 15px; }
+        .fx-card { 
+            min-width: 90px; height: 110px; background: var(--glass); border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        
+        #exportBtn { background: var(--primary); border: none; color: white; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 12px; }
     </style>
 </head>
 <body>
 
+    <div class="stars-bg" id="stars"></div>
+
     <div class="header">
-        <span onclick="history.back()">✕</span>
-        <div class="res-slider">
-            <span class="res-label" id="resDisplay">720P (HD)</span>
-            <input type="range" id="resRange" min="0" max="2" step="1" value="1">
+        <span onclick="window.location.href='index.html'">✕</span>
+        
+        <div class="res-container">
+            <div class="res-track">
+                <div class="res-node active" onclick="setRes(0, this)"><span>480P</span></div>
+                <div class="res-node" onclick="setRes(1, this)"><span>720P</span></div>
+                <div class="res-node" onclick="setRes(2, this)"><span>1080P</span></div>
+            </div>
         </div>
+
         <button id="exportBtn">SALVAR</button>
     </div>
 
-    <div class="preview">
+    <div class="viewport">
         <canvas id="mainCanvas"></canvas>
     </div>
 
-    <div class="effects-drawer" id="fxDrawer">
+    <div class="drawer" id="fxDrawer">
         <div class="drawer-header">
-            <span>Efeitos de Pasta</span>
-            <span onclick="toggleDrawer()" style="color: var(--primary)">Pronto</span>
+            <span>EFEITOS DE PASTA</span>
+            <span onclick="toggleDrawer()">PRONTO</span>
         </div>
-        <div class="effects-grid">
-            <div class="effect-item" onclick="applyInvert()">
-                <div class="icon">🌓</div> Negativo
-            </div>
-            <div class="effect-item" onclick="applyGray()">
-                <div class="icon">⚪</div> P&B
-            </div>
-            </div>
+        <div class="effects-list">
+            <div class="fx-card" onclick="applyEffect('invert')"><span>🌓</span><br>Inverter</div>
+            <div class="fx-card" onclick="applyEffect('grayscale')"><span>🔘</span><br>P&B</div>
+            <div class="fx-card" onclick="applyEffect('sepia')"><span>📜</span><br>Sépia</div>
+        </div>
     </div>
 
-    <div class="toolbar">
-        <div class="tool-btn" onclick="toggleDrawer()">
-            <div class="icon">✨</div>
-            <span>Efeitos</span>
-        </div>
-        <div class="tool-btn">
-            <div class="icon">🎨</div>
-            <span>Ajustes</span>
-        </div>
-        <div class="tool-btn">
-            <div class="icon">📐</div>
-            <span>Crop</span>
+    <div class="bottom-nav">
+        <div class="tool-grid">
+            <div class="tool-item" onclick="toggleDrawer()">
+                <span style="font-size: 24px;">✨</span>
+                <span>Efeitos</span>
+            </div>
+            <div class="tool-item">
+                <span style="font-size: 24px;">🎨</span>
+                <span>Ajustes</span>
+            </div>
         </div>
     </div>
 
     <script>
-        const canvas = document.getElementById('mainCanvas');
-        const ctx = canvas.getContext('2d');
-        const resRange = document.getElementById('resRange');
-        const resDisplay = document.getElementById('resDisplay');
-        const resolutions = [
-            { label: '480P (SD)', w: 854, h: 480 },
-            { label: '720P (HD)', w: 1280, h: 720 },
-            { label: '1080P (FHD)', w: 1920, h: 1080 }
-        ];
-
-        // Carregar imagem do SessionStorage
-        let originalImg = new Image();
-        const imgData = sessionStorage.getItem('temp_image');
-        if (imgData) {
-            originalImg.onload = () => { render(); };
-            originalImg.src = imgData;
+        // Mesmo gerador de estrelas do index para manter o visual
+        const starContainer = document.getElementById('stars');
+        for (let i = 0; i < 30; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+            const size = Math.random() * 2 + 'px';
+            star.style.width = size; star.style.height = size;
+            star.style.left = Math.random() * 100 + '%';
+            star.style.animationDuration = (Math.random() * 3 + 2) + 's';
+            starContainer.appendChild(star);
         }
 
-        function render() {
-            const res = resolutions[resRange.value];
-            resDisplay.innerText = res.label;
-            
-            // Redimensiona o canvas para a resolução escolhida
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const resolutions = [
+            { w: 854, h: 480 }, { w: 1280, h: 720 }, { w: 1920, h: 1080 }
+        ];
+        let currentRes = 0;
+        let originalImg = new Image();
+
+        // Carregar a imagem enviada pelo Index
+        const savedImg = sessionStorage.getItem('temp_image');
+        if (savedImg) {
+            originalImg.src = savedImg;
+            originalImg.onload = () => updateCanvas();
+        }
+
+        function setRes(index, el) {
+            document.querySelectorAll('.res-node').forEach(n => n.classList.remove('active'));
+            el.classList.add('active');
+            currentRes = index;
+            updateCanvas();
+        }
+
+        function updateCanvas() {
+            const res = resolutions[currentRes];
             canvas.width = res.w;
             canvas.height = res.h;
             
-            // Desenha a imagem cobrindo o espaço (Object-fit: cover logic)
-            const scale = Math.max(canvas.width / originalImg.width, canvas.height / originalImg.height);
-            const x = (canvas.width / 2) - (originalImg.width / 2) * scale;
-            const y = (canvas.height / 2) - (originalImg.height / 2) * scale;
-            ctx.drawImage(originalImg, x, y, originalImg.width * scale, originalImg.height * scale);
+            // Desenha a imagem centralizada (Fit)
+            const ratio = Math.min(canvas.width / originalImg.width, canvas.height / originalImg.height);
+            const nw = originalImg.width * ratio;
+            const nh = originalImg.height * ratio;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(originalImg, (canvas.width - nw) / 2, (canvas.height - nh) / 2, nw, nh);
         }
 
-        resRange.oninput = render;
+        function toggleDrawer() { document.getElementById('fxDrawer').classList.toggle('open'); }
 
-        // Funções de Efeito
-        function toggleDrawer() { document.getElementById('fxDrawer').classList.toggle('active'); }
-
-        function applyInvert() {
-            const data = ctx.getImageData(0,0, canvas.width, canvas.height);
-            for(let i=0; i<data.data.length; i+=4) {
-                data.data[i] = 255 - data.data[i];
-                data.data[i+1] = 255 - data.data[i+1];
-                data.data[i+2] = 255 - data.data[i+2];
-            }
-            ctx.putImageData(data, 0,0);
-        }
-
-        // Correção do Exportar
+        // Função de Exportar Corrigida
         document.getElementById('exportBtn').onclick = () => {
             const link = document.createElement('a');
-            link.download = `stargazer_${resolutions[resRange.value].label}.png`;
+            link.download = `stargazer_export_${resolutions[currentRes].w}p.png`;
             link.href = canvas.toDataURL('image/png', 1.0);
             link.click();
         };
+
+        function applyEffect(type) {
+            const imgData = ctx.getImageData(0,0, canvas.width, canvas.height);
+            const d = imgData.data;
+            for (let i = 0; i < d.length; i += 4) {
+                if(type === 'invert') { d[i]=255-d[i]; d[i+1]=255-d[i+1]; d[i+2]=255-d[i+2]; }
+                if(type === 'grayscale') { let v = (d[i]+d[i+1]+d[i+2])/3; d[i]=d[i+1]=d[i+2]=v; }
+            }
+            ctx.putImageData(imgData, 0, 0);
+        }
     </script>
 </body>
 </html>
